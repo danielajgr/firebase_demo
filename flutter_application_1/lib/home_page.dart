@@ -5,6 +5,7 @@
 import 'package:firebase_auth/firebase_auth.dart'
     hide EmailAuthProvider, PhoneAuthProvider;
 import 'package:flutter/material.dart';
+import 'package:gtk_flutter/size_input.dart';
 import 'package:provider/provider.dart';
 
 import 'app_state.dart';
@@ -46,20 +47,32 @@ class HomePage extends StatelessWidget {
             'Join us for a day full of Firebase Workshops and Pizza!',
           ),
           Consumer<ApplicationState>(
-            builder: (context, appState, _) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (appState.loggedIn) ...[
-                  const Header('Discussion'),
-                  GuestBook(
-                    addMessage: (message) =>
-                        appState.addMessageToGuestBook(message),
-                    messages: appState.guestBookMessages,
-                  ),
-                ],
-              ],
-            ),
-          ),
+  builder: (context, appState, _) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Add from here...
+      switch (appState.attendees) {
+        1 => const Paragraph('1 person going'),
+        >= 2 => Paragraph('${appState.attendees} people going'),
+        _ => const Paragraph('No one going'),
+      },
+      // ...to here.
+      if (appState.loggedIn) ...[
+        // Add from here...
+        SizeInput(
+          onSelection: (attending) => appState.attending = attending,
+        ),
+        // ...to here.
+        const Header('Discussion'),
+        GuestBook(
+          addMessage: (message) =>
+              appState.addMessageToGuestBook(message),
+          messages: appState.guestBookMessages,
+        ),
+      ],
+    ],
+  ),
+),
         ],
       ),
     );

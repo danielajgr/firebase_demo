@@ -4,6 +4,8 @@
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'
     hide EmailAuthProvider, PhoneAuthProvider;
@@ -13,6 +15,7 @@ import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'guest_book_message.dart';
+
 
 class ApplicationState extends ChangeNotifier {
   ApplicationState() {
@@ -26,6 +29,22 @@ class ApplicationState extends ChangeNotifier {
   List<GuestBookMessage> _guestBookMessages = [];
   List<GuestBookMessage> get guestBookMessages => _guestBookMessages;
 
+  int _attendees = 0;
+  int get attendees => _attendees;
+
+  int _attending = 0;
+  StreamSubscription<DocumentSnapshot>? _attendingSubscription;
+  int get attending => _attending;
+  set attending(int attending) {
+    final userDoc = FirebaseFirestore.instance
+        .collection('attendees')
+        .doc(FirebaseAuth.instance.currentUser!.uid);
+        userDoc.set(<String, dynamic>{'attending': attending});
+    
+  }
+
+  
+
   Future<void> init() async {
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
@@ -33,6 +52,19 @@ class ApplicationState extends ChangeNotifier {
     FirebaseUIAuth.configureProviders([
       EmailAuthProvider(),
     ]);
+
+    //https://stackoverflow.com/questions/10405348/what-is-the-cleanest-way-to-get-the-sum-of-numbers-in-a-collection-list-in-dart
+    FirebaseFirestore.instance
+    .collection('attendees')
+    .snapshots()
+    .listen((snapshot) {
+    _attendees = snapshot.docs.fold(0, (total, doc) {
+      return total + (doc.data()['attending'] as int? ?? 0);  
+    });
+    notifyListeners();
+  });
+
+
 
     FirebaseAuth.instance.userChanges().listen((user) {
       if (user != null) {
@@ -53,10 +85,24 @@ class ApplicationState extends ChangeNotifier {
           }
           notifyListeners();
         });
+        _attendingSubscription = FirebaseFirestore.instance
+            .collection('attendees')
+            .doc(user.uid)
+            .snapshots()
+            .listen((snapshot) {
+          if (snapshot.data() != null) {
+            _attending = snapshot.data()!['attending'] as int? ?? 0; 
+
+          } else {
+            _attending = 0;
+          }
+          notifyListeners();
+        });
       } else {
         _loggedIn = false;
         _guestBookMessages = [];
         _guestBookSubscription?.cancel();
+        _attendingSubscription?.cancel();
       }
       notifyListeners();
     });
